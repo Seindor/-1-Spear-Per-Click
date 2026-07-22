@@ -233,10 +233,16 @@ export class AbilityPackHandler {
             return false;
         }
 
+        if (entry.ability.OnCooldown()) {
+            return false;
+        }
+
         abilityAPI.Execute(entry.ability, "Start", true, inputObject);
 
-        if (!entry.ability.HasState("Active")) {
-            return false;
+        if (entry.ability.config.duration !== 0 || entry.ability.config.minDuration !== 0) {
+            if (!entry.ability.HasState("Active")) {
+                return false;
+            }
         }
 
         if (entry.mode === "Hold") {

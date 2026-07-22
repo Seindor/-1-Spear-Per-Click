@@ -44,9 +44,9 @@ export class SetupAbilityInputsStep extends PipelineStep<ClientPlayerContext> {
             `${ctx.Data.id}`,
             (value) => {
                 if (!value) return;
-                if (value.flags.weapon !== `none`) {
+                if (value.weapon !== 0) {
                     const module = ParseAliasModulePath(
-                        `shared/Implementation/Entities/Abilities/${value.flags.weapon}/${value.flags.currentStage}`,
+                        `shared/Implementation/Entities/Abilities/Weapons/Main`,
                     );
 
                     if (!module) {

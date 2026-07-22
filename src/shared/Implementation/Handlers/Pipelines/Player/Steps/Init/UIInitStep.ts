@@ -7,13 +7,12 @@ import {
 import { PipelineContext } from "shared/Domain/Pipeline/Aggregates/PipelineContext";
 import { IStepConfig } from "shared/Domain/Pipeline/Types/PipelineTypes";
 
-import { IPlayerInterface } from "shared/Types/Gameplay/UI/IPlayerInterface";
-
 import { Pipeline } from "shared/Domain/Pipeline/Decorators/Pipeline";
 import { PipelineStep } from "shared/Domain/Pipeline/Aggregates/PipelineStep";
 
 import { SharedRegistry } from "shared/DI/Generated/SharedRegistry";
 import { CompositionRootShared } from "shared/DI/CompositionRootShared";
+import { IPlayer_Interface } from "shared/Types/Gameplay/UI/IPlayerInterface";
 
 const sharedScope = CompositionRootShared.createScope();
 
@@ -22,6 +21,7 @@ const janitorAPI = sharedScope.resolve(SharedRegistry.Singletons.API.JanitorAPI)
 @Pipeline({ Pipeline: ClientPlayerPipelineToken })
 export class UIInitStep extends PipelineStep<ClientPlayerContext> {
     public readonly Id = `UIInitStep`;
+    public readonly playerInterfaceName = `Player_Interface`;
 
     public Before = [`LoadReplicatorsStep`];
 
@@ -35,8 +35,10 @@ export class UIInitStep extends PipelineStep<ClientPlayerContext> {
         const id = this.Id;
         let player = ctx.Data.player;
         let playerGui = player.WaitForChild(`PlayerGui`) as PlayerGui;
-        let sampleInterface = StarterGui.WaitForChild(`PlayerInterface`) as IPlayerInterface;
-        let playerInterface = playerGui.WaitForChild(`PlayerInterface`) as IPlayerInterface;
+        let sampleInterface = StarterGui.WaitForChild(
+            this.playerInterfaceName,
+        ) as IPlayer_Interface;
+        let playerInterface = playerGui.WaitForChild(this.playerInterfaceName) as IPlayer_Interface;
 
         this.AutoScaleUiStroke(ctx);
 
@@ -55,13 +57,10 @@ export class UIInitStep extends PipelineStep<ClientPlayerContext> {
     private AutoScaleUiStroke(ctx: PipelineContext<ClientPlayerContext>) {
         let player = ctx.Data.player;
         let playerGui = player.WaitForChild(`PlayerGui`) as PlayerGui;
-        let playerInterface = playerGui.WaitForChild(`PlayerInterface`) as IPlayerInterface;
+        let playerInterface = playerGui.WaitForChild(this.playerInterfaceName) as IPlayer_Interface;
 
         let janitor = this._janitor.Create(`UIInit`);
 
-        // Базовую толщину храним ОТДЕЛЬНО от текущей (уже отскейленной) —
-        // иначе повторный пересчёт будет применяться поверх уже применённого
-        // масштаба и толщина "уползёт".
         const baseThickness = new Map<UIStroke, number>();
 
         const GetScaleFactor = (): number => {
@@ -126,6 +125,25 @@ export class UIInitStep extends PipelineStep<ClientPlayerContext> {
             }),
             `Disconnect`,
             `CurrentCameraChanged`,
+        );
+
+        janitor.Add(
+            task.delay(10, () => {
+                janitor.Remove(`Loading_Rescale`);
+            }),
+            true,
+            `Remove_Loading_Rescale`,
+        );
+
+        janitor.Add(
+            task.spawn(() => {
+                while (true) {
+                    AutoScale();
+                    task.wait(0.25);
+                }
+            }),
+            true,
+            `Loading_Rescale`,
         );
     }
 }

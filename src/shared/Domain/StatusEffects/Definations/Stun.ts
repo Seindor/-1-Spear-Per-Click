@@ -27,29 +27,26 @@ export const Stun: StatusDefinition = {
     ],
 
     onAdded: (actorId: string, statusInstance?: StatusAggregateType) => {
-        let walkSpeedSolver = solverAPI.GetSolver(`WalkSpeed_Solver_${actorId}`)!;
-        let jumpPowerSolver = solverAPI.GetSolver(`JumpPower_Solver_${actorId}`)!;
-
-        walkSpeedSolver.SetSolverNumber({
-            sourceId: "Stun",
-            phaseName: "Multiplier2",
-            value: walkSpeeds[statusInstance?.priority as keyof typeof walkSpeeds] ?? 0,
-            tags: ["Stun"],
-        });
-
-        jumpPowerSolver.SetSolverNumber({
-            sourceId: "Stun",
-            phaseName: "Multiplier2",
-            value: 0,
-            tags: ["Stun"],
-        });
+        // let walkSpeedSolver = solverAPI.GetSolver(`WalkSpeed_Solver_${actorId}`)!;
+        // let jumpPowerSolver = solverAPI.GetSolver(`JumpPower_Solver_${actorId}`)!;
+        // walkSpeedSolver.SetSolverNumber({
+        //     sourceId: "Stun",
+        //     phaseName: "Multiplier2",
+        //     value: walkSpeeds[statusInstance?.priority as keyof typeof walkSpeeds] ?? 0,
+        //     tags: ["Stun"],
+        // });
+        // jumpPowerSolver.SetSolverNumber({
+        //     sourceId: "Stun",
+        //     phaseName: "Multiplier2",
+        //     value: 0,
+        //     tags: ["Stun"],
+        // });
     },
     onRemoved: (actorId: string, statusInstance?: StatusAggregateType) => {
-        let walkSpeedSolver = solverAPI.GetSolver(`WalkSpeed_Solver_${actorId}`)!;
-        let jumpPowerSolver = solverAPI.GetSolver(`JumpPower_Solver_${actorId}`)!;
-
-        walkSpeedSolver.RemoveSolverNumber("Stun");
-        jumpPowerSolver.RemoveSolverNumber("Stun");
+        // let walkSpeedSolver = solverAPI.GetSolver(`WalkSpeed_Solver_${actorId}`)!;
+        // let jumpPowerSolver = solverAPI.GetSolver(`JumpPower_Solver_${actorId}`)!;
+        // walkSpeedSolver.RemoveSolverNumber("Stun");
+        // jumpPowerSolver.RemoveSolverNumber("Stun");
     },
     onCheck: (actorId: string, statusInstance?: StatusAggregateType) => {},
 };

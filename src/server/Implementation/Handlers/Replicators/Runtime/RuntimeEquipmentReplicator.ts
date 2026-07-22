@@ -7,6 +7,7 @@ import { RuntimeEquipmentState } from "shared/Types/Replicators/Runtime/RuntimeE
 
 import { ServerRegistry } from "server/DI/Generated/ServerRegistry";
 import { CompositionRootServer } from "server/DI/CompositionRootServer";
+import { number } from "@rbxts/react/src/prop-types";
 
 const serverScope = CompositionRootServer.createScope();
 
@@ -22,12 +23,10 @@ export class RuntimeEquipmentReplicator extends ReplicatedAtomAggregate<
 
     public InitActor(actorId: string) {
         this.UpdateActor(actorId, {
-            flags: {
-                fightingStyle: `none`,
-                weapon: `none`,
-                currentStage: `Stage_1`,
-            },
-            equipment: {},
+            weapon: 0,
+            pets: [],
+            title: 0,
+            aura: 0,
         });
     }
 

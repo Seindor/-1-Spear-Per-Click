@@ -5,19 +5,23 @@
 import type {
     IKeybinds,
     IRuntimeBind,
-    InputType,
     ISavedBind,
-} from "shared/Types/Database/Keybinds";
+    InputType,
+} from "shared/Types/Gameplay/Keybinds/Keybinds";
 
 export class KeybindMapper {
     public static ResolveInputName(name: string): InputType | undefined {
-        const keyCode = (Enum.KeyCode as unknown as Record<string, Enum.KeyCode>)[name];
-        if (keyCode) return keyCode;
+        for (const item of Enum.UserInputType.GetEnumItems()) {
+            if (item.Name === name) {
+                return item;
+            }
+        }
 
-        const inputType = (Enum.UserInputType as unknown as Record<string, Enum.UserInputType>)[
-            name
-        ];
-        if (inputType) return inputType;
+        for (const item of Enum.KeyCode.GetEnumItems()) {
+            if (item.Name === name) {
+                return item;
+            }
+        }
 
         warn(`[KeybindMapper] Unknown input name "${name}" — skipping`);
         return undefined;
@@ -28,10 +32,15 @@ export class KeybindMapper {
 
         for (const name of saved.inputTypes) {
             const resolved = KeybindMapper.ResolveInputName(name);
-            if (resolved !== undefined) inputTypes.push(resolved);
+
+            if (resolved !== undefined) {
+                inputTypes.push(resolved);
+            }
         }
 
-        if (inputTypes.size() === 0) return undefined;
+        if (inputTypes.size() === 0) {
+            return undefined;
+        }
 
         let combo: InputType[] | undefined;
 
@@ -40,11 +49,17 @@ export class KeybindMapper {
 
             for (const name of saved.combo) {
                 const resolved = KeybindMapper.ResolveInputName(name);
-                if (resolved !== undefined) combo.push(resolved);
+
+                if (resolved !== undefined) {
+                    combo.push(resolved);
+                }
             }
         }
 
-        return { inputTypes, combo };
+        return {
+            inputTypes,
+            combo,
+        };
     }
 
     public static MergeWithDefaults(

@@ -1,8 +1,5 @@
-import { IServerList } from "./IServerList";
-import { IMainMenu } from "./MainMenu";
+import { IMain_Frame } from "./IMain_Frame";
 
-export type IPlayerInterface = {
-    ["ServerList"]: IServerList;
-    [`MainMenu`]?: IMainMenu;
-    ["ServerListVignette"]: ImageLabel;
+export type IPlayer_Interface = {
+    [`Main_Frame`]: IMain_Frame;
 } & ScreenGui;

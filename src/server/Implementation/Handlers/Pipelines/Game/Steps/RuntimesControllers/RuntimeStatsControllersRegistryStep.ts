@@ -5,14 +5,17 @@ import type { RuntimeAPI } from "shared/Domain/Runtime/API/RuntimeAPI";
 
 import { Pipeline } from "shared/Domain/Pipeline/Decorators/Pipeline";
 import { PipelineStep } from "shared/Domain/Pipeline/Aggregates/PipelineStep";
+import { GameContext, GamePipelineToken } from "../../GamePipeline";
 
-import { HealthControllerToken } from "server/Implementation/Handlers/Runtimes/SessionRuntime/Controllers/RuntimeStats";
-
-import { HealthController } from "server/Implementation/Handlers/Runtimes/SessionRuntime/Controllers/RuntimeStats/HealthController";
+import {
+    StrengthControllerToken,
+    WinsControllerToken,
+} from "server/Implementation/Handlers/Runtimes/SessionRuntime/Controllers/RuntimeStats";
+import { StrengthController } from "server/Implementation/Handlers/Runtimes/SessionRuntime/Controllers/RuntimeStats/StrengthController";
 
 import { CompositionRootShared } from "shared/DI/CompositionRootShared";
 import { SharedRegistry } from "shared/DI/Generated/SharedRegistry";
-import { GameContext, GamePipelineToken } from "../../GamePipeline";
+import { WinsController } from "server/Implementation/Handlers/Runtimes/SessionRuntime/Controllers/RuntimeStats/WinsController";
 
 const sharedScope = CompositionRootShared.createScope();
 
@@ -27,7 +30,8 @@ export class RuntimeStatsControllersRegistryStep extends PipelineStep<GameContex
     public Execute(ctx: PipelineContext<GameContext>): void {
         const { id } = ctx.Data;
 
-        runtimeAPI.Register(`Stats`, HealthControllerToken, HealthController);
+        runtimeAPI.Register(`Stats`, StrengthControllerToken, StrengthController);
+        runtimeAPI.Register(`Stats`, WinsControllerToken, WinsController);
 
         ctx.MarkCompleted(this.Id);
     }

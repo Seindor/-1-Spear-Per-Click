@@ -4,7 +4,7 @@ import { SessionContext } from "shared/Types/Runtime/SessionRuntime";
 
 import { RuntimeEquipmentState } from "shared/Types/Replicators/Runtime/RuntimeEquipmentState";
 
-import { DataHandler } from "server/Implementation/Handlers/DataHandler";
+import { DataHandler } from "server/Implementation/Handlers/Game/Data/DataHandler";
 import { ServerReplicatedAtomAPI } from "shared/Domain/ReplicatedAtoms/API/ServerReplicatedAtomAPI";
 
 import { CompositionRootServer } from "server/DI/CompositionRootServer";
@@ -27,10 +27,11 @@ export class WeaponController extends ReplicatedController<SessionContext> {
     public readonly Name = `WeaponController`;
 
     public state = {
-        fightingStyle: `none`,
-        weapon: `none`,
-        currentStage: `Stage_1`,
-    };
+        weapon: 0,
+        pets: [],
+        title: 0,
+        aura: 0,
+    } as RuntimeEquipmentState;
 
     private dataHandler?: DataHandler;
     private serverAbilityHanlder?: ServerAbilityHandler;
@@ -45,18 +46,10 @@ export class WeaponController extends ReplicatedController<SessionContext> {
 
         if (this.dataHandler) {
             const data = this.dataHandler.GetData();
-            const slotData = data.slots.find((slot) => slot.slotInfo.slotId === data.currentSlot);
 
-            this.state.fightingStyle = slotData?.character.equipment.fightingStyle ?? `none`;
-
-            this.state.weapon = slotData?.character.equipment.weapon ?? `none`;
-
-            this.state.currentStage = `Stage_1`;
+            this.state.weapon = data.equipment.weapon ?? 1;
         } else {
-            this.state.fightingStyle =
-                this.runtime.GetMeta<string>("initial/FightingStyle") ?? `none`;
-
-            this.state.weapon = this.runtime.GetMeta<string>("initial/Weapon") ?? `none`;
+            this.state.weapon = this.runtime.GetMeta<number>("initial/Weapon") ?? 1;
         }
 
         this.UpdateWeaponAbilitiesPack();
@@ -64,16 +57,13 @@ export class WeaponController extends ReplicatedController<SessionContext> {
         this.SyncToReplicator();
     }
 
-    public ChangeWeaponPack(weapon: string) {
+    public ChangeWeaponPack(weapon: number) {
         this.state.weapon = weapon;
 
         if (this.dataHandler) {
             const data = this.dataHandler.GetData();
-            const slotData = data.slots.find((slot) => slot.slotInfo.slotId === data.currentSlot);
 
-            if (!slotData) return;
-
-            slotData.character.equipment.weapon = this.state.weapon;
+            data.equipment.weapon = this.state.weapon;
         }
 
         this.SyncToReplicator();
@@ -81,10 +71,10 @@ export class WeaponController extends ReplicatedController<SessionContext> {
 
     public UpdateWeaponAbilitiesPack() {
         if (!this.serverAbilityHanlder) return;
-        if (this.state.weapon === `none`) return;
+        if (this.state.weapon === 0) return;
 
         const module = ParseAliasModulePath(
-            `server/Implementation/Entities/Abilities/${this.state.weapon}/${this.state.currentStage}`,
+            `server/Implementation/Entities/Abilities/Weapons/Main`,
         );
 
         if (!module) {
@@ -114,16 +104,6 @@ export class WeaponController extends ReplicatedController<SessionContext> {
         let runtimeEquipmentReplicator =
             serverReplicatedAtomAPI.Get<RuntimeEquipmentReplicator>(`RuntimeEquipment`);
 
-        runtimeEquipmentReplicator
-            ?.UpdateDataWithPath(this.runtime.Context.id)
-            .Set(`flags/fightingStyle`, this.state.fightingStyle);
-
-        runtimeEquipmentReplicator
-            ?.UpdateDataWithPath(this.runtime.Context.id)
-            .Set(`flags/weapon`, this.state.weapon);
-
-        runtimeEquipmentReplicator
-            ?.UpdateDataWithPath(this.runtime.Context.id)
-            .Set(`flags/currentStage`, this.state.currentStage);
+        runtimeEquipmentReplicator?.UpdateActor(this.runtime.Context.id, this.state);
     }
 }

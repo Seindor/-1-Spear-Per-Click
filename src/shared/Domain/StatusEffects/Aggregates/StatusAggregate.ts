@@ -1,3 +1,5 @@
+import { Workspace } from "@rbxts/services";
+
 import {
     IStatusStackBehavior,
     StackInstance,
@@ -67,7 +69,7 @@ export class StatusAggregate implements StatusAggregateType {
             (definition.defaultModifiers ? [...definition.defaultModifiers] : []);
 
         this.priority = options?.priority ?? 1;
-        this.spawned = os.time();
+        this.spawned = Workspace.GetServerTimeNow();
         this.duration = options?.duration ?? definition.duration ?? math.huge;
 
         this.stacks = options?.stacks ?? 1;

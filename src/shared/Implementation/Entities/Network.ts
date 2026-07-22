@@ -5,9 +5,6 @@ import {
     R15MotorName,
     R6MotorName,
 } from "shared/Domain/AnimationsController/Types/AnimatorTypes";
-import { Gender } from "shared/Types/Database/Gender";
-import { ISlotRecievedInfo } from "shared/Types/Database/PlayerData";
-import { Race } from "shared/Types/Database/Race";
 import { AbilityNetworkMethod } from "shared/Types/Game/Abilities/AbilityPackTypes";
 import { ServerInfo } from "shared/Types/Game/ServerInfo";
 import { GameTeleportData } from "shared/Types/Game/TeleportDatas/TeleportData";
@@ -68,6 +65,9 @@ export interface ServerToClientSignals {
     ): void;
 
     AtomSync(payload: any): void;
+
+    //GamePlay
+    ReloadRoom(): void;
 }
 
 export interface ClientToServerSignals {
@@ -102,38 +102,16 @@ export interface ClientToServerSignals {
     RequestHydrate(): void;
     AtomHydrated(): void;
 
-    //Servers
+    //GamePlay
 
-    QuickJoin(): void;
-    JoinSelectedServer(serverInfo: ServerInfo): void;
-
-    CreatePublicServer(): void;
+    UpdateSelectedRoom(roomId: number): void;
+    WinsPadTouched(padId: `Wins_Pad` | `Super_Wins_Pad`, roomId: number): void;
 
     //Data
-
-    CreateCharacterSlot(
-        name: string,
-        recieveMethod: ISlotRecievedInfo,
-        race: Race,
-        gender: Gender,
-    ): void;
-
-    SetupSlot(slotId: string, name: string, gender: Gender, race: Race): void;
-
-    SelectCharacterSlot(slot: string): void;
 }
 
 export interface ServerToClientFunctions {}
-export interface ClientToServerFunctions {
-    //Servers
-    GetServers(): ServerInfo[];
-
-    //Filtering
-    GetFilteredSlotName(slotName: string): {
-        filtered: boolean;
-        name: string;
-    };
-}
+export interface ClientToServerFunctions {}
 
 export const GlobalSignals = Networking.createEvent<ClientToServerSignals, ServerToClientSignals>();
 export const GlobalFunctions = Networking.createFunction<

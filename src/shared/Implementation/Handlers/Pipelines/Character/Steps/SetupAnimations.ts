@@ -31,11 +31,11 @@ export class SetupAnimationsStep extends PipelineStep<ClientCharacterContext> {
         let humanoid = character.WaitForChild(`Humanoid`) as Humanoid;
         let humanoidRootPart = character.WaitForChild(`HumanoidRootPart`) as BasePart;
 
-        ClientMovementAnimationHandlerRegistry.Attach(ctx.Data.id, `Main`, {
-            character: character,
-            rootPart: humanoidRootPart,
-            humanoid: humanoid,
-        });
+        // ClientMovementAnimationHandlerRegistry.Attach(ctx.Data.id, `Main`, {
+        //     character: character,
+        //     rootPart: humanoidRootPart,
+        //     humanoid: humanoid,
+        // });
 
         ctx.MarkCompleted(this.Id);
     }

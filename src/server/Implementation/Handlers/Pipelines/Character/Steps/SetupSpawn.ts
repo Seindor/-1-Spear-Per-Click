@@ -11,10 +11,6 @@ import { IAppearance } from "shared/Types/Gameplay/PlayerAppearance";
 
 import { SharedRegistry } from "shared/DI/Generated/SharedRegistry";
 import { CompositionRootShared } from "shared/DI/CompositionRootShared";
-import { PlayerPipelineToken } from "../../Player/PlayerPipeline";
-import { DataHandler } from "server/Implementation/Handlers/DataHandler";
-import { ISlotData } from "shared/Types/Database/PlayerData";
-import { IsPlaceBlacklisted, PlaceBlacklist } from "shared/Types/Game/ServerInfo";
 
 const sharedScope = CompositionRootShared.createScope();
 
@@ -27,8 +23,6 @@ const pipelineAPI = sharedScope.resolve(SharedRegistry.Singletons.API.PipelineAP
 @Pipeline({ Pipeline: CharacterPipelineToken })
 export class SetupSpawn extends PipelineStep<CharacterContext> {
     public readonly Id = "SetupSpawnStep";
-
-    public Blacklist = [`Main Menu`] as PlaceBlacklist;
 
     private createAppearance(): IAppearance {
         let appearance = Fusion.New("Folder")({
@@ -153,152 +147,18 @@ export class SetupSpawn extends PipelineStep<CharacterContext> {
     }
 
     private miscSetupStep(ctx: PipelineContext<CharacterContext>) {
-        hitboxAPI.TrackModel(ctx.Data.character);
+        let character = ctx.Data.character;
+        let humanoidRootPart = character.WaitForChild(`HumanoidRootPart`) as BasePart;
+
+        hitboxAPI.TrackPart(humanoidRootPart, 0.5);
     }
 
     private Cleanup(ctx: PipelineContext<CharacterContext>) {
-        hitboxAPI.UntrackModel(ctx.Data.character);
+        let character = ctx.Data.character;
+        let humanoidRootPart = character.WaitForChild(`HumanoidRootPart`) as BasePart;
+
+        hitboxAPI.UntrackPart(humanoidRootPart);
         animationsAPI.RemoveActorAnimators(ctx.Data.id);
-    }
-
-    private async loadPlayerVisual(ctx: PipelineContext<CharacterContext>): Promise<void> {
-        const userId = tonumber(ctx.Data.id);
-        assert(userId !== undefined, `[loadPlayerVisual] Invalid userId "${ctx.Data.id}"`);
-
-        const character = ctx.Data.character;
-
-        let playerCtx = pipelineAPI.GetContext(PlayerPipelineToken, ctx.Data.id);
-
-        while (!playerCtx || !playerCtx.IsFinished()) {
-            playerCtx = pipelineAPI.GetContext(PlayerPipelineToken, ctx.Data.id);
-            task.wait(1);
-        }
-
-        if (!playerCtx || !playerCtx.IsFinished()) {
-            warn(`[SetupSpawn] Player pipeline for ${ctx.Data.id} is not finished yet`);
-            return;
-        }
-
-        const dataHandler = playerCtx.Get<DataHandler>("DataHandler");
-
-        if (!dataHandler) {
-            warn(`[SetupSpawn] data handler is nil`);
-            return;
-        }
-
-        const data = dataHandler.GetData();
-        const slot = data.slots.find((slot) => slot.slotInfo.slotId === data.currentSlot);
-
-        if (!slot) {
-            warn(`[SetupSpawn] character slot is nil`);
-            return;
-        }
-
-        this.setupGender(slot, character);
-        this.setupClothing(slot, character);
-
-        const humanoid = character.FindFirstChildOfClass("Humanoid");
-        assert(humanoid, `[loadPlayerVisual] Humanoid not found on character`);
-
-        const [ok, appearance] = pcall(() => Players.GetCharacterAppearanceAsync(userId));
-
-        if (!ok || !appearance) {
-            warn(`[loadPlayerVisual] Failed to fetch appearance for ${userId}`);
-            return;
-        }
-
-        this.applyHair(character, humanoid, appearance as Model);
-        this.applySkinColor(character, appearance as Model);
-
-        (appearance as Model).Destroy();
-    }
-
-    private setupGender(slot: ISlotData, character: Model) {
-        const gender = slot.character.profile.gender;
-
-        if (gender === `Female`) {
-            let characterMesh = new Instance(`CharacterMesh`);
-            characterMesh.BodyPart = Enum.BodyPart.Torso;
-            characterMesh.MeshId = 48112070;
-            characterMesh.Parent = character;
-        }
-    }
-
-    private setupClothing(slot: ISlotData, character: Model) {
-        const Assets = ReplicatedStorage.WaitForChild(`Assets`) as Folder;
-        const ClothingAssets = Assets.WaitForChild(`Clothing`);
-
-        const clothing = slot.character.equipment.clothing;
-        const gender = slot.character.profile.gender;
-
-        let shirt = character.WaitForChild(`Shirt`) as Shirt;
-        let pants = character.WaitForChild(`Pants`) as Pants;
-
-        if (!clothing.shirt.id && !clothing.pants.id) {
-            let clothingFolder = ClothingAssets.WaitForChild(clothing.shirt.name) as Folder;
-            let genderClothingFolder = clothingFolder.WaitForChild(gender) as Folder;
-
-            let shirtAsset = genderClothingFolder.WaitForChild(`Shirt`) as Shirt;
-            let pantsAsset = genderClothingFolder.WaitForChild(`Pants`) as Pants;
-
-            let shirtTemplate = shirtAsset.ShirtTemplate;
-            let pantstemplate = pantsAsset.PantsTemplate;
-
-            shirt.ShirtTemplate = shirtTemplate;
-            pants.PantsTemplate = pantstemplate;
-        } else {
-            shirt.ShirtTemplate = clothing.shirt.id ?? ``;
-            pants.PantsTemplate = clothing.pants.id ?? ``;
-        }
-    }
-
-    private applyHair(character: Model, humanoid: Humanoid, appearance: Model): void {
-        const head = character.WaitForChild(`Head`);
-
-        for (const child of appearance.GetChildren()) {
-            if (!child.IsA("Accessory")) continue;
-
-            if (
-                child.AccessoryType !== Enum.AccessoryType.Hair &&
-                child.AccessoryType !== Enum.AccessoryType.Unknown
-            )
-                continue;
-
-            let clone = child.Clone();
-
-            clone.Parent = character;
-
-            let handle = clone.FindFirstChild(`Handle`) as BasePart;
-
-            if (!handle.FindFirstChild(`HairAttachment`)) {
-                clone.Destroy();
-                continue;
-            }
-
-            if (!handle) {
-                clone.Destroy();
-                continue;
-            }
-
-            let accessoryWeld = handle.FindFirstChild(`AccessoryWeld`) as Weld;
-
-            if (!accessoryWeld) {
-                clone.Destroy();
-                continue;
-            }
-
-            if (clone.FindFirstChildWhichIsA(`Camera`)) {
-                clone.FindFirstChildWhichIsA(`Camera`)?.Destroy();
-            }
-
-            if (accessoryWeld.Part1 !== head) {
-                clone.Destroy();
-            }
-        }
-    }
-
-    private applySkinColor(character: Model, appearance: Model): void {
-        appearance.WaitForChild(`Body Colors`).Parent = character;
     }
 
     private SetupEntity(ctx: PipelineContext<CharacterContext>) {
@@ -311,10 +171,6 @@ export class SetupSpawn extends PipelineStep<CharacterContext> {
         if (ctx.Data.type === `Player`) {
             entity.AddTag(`Player`, true);
             ctx.Data.character.AddTag(`Player`);
-
-            if (!IsPlaceBlacklisted(this.Blacklist)) {
-                this.loadPlayerVisual(ctx);
-            }
         } else {
             entity.AddTag(`NPC`);
             ctx.Data.character.AddTag(`NPC`);

@@ -1,10 +1,15 @@
 import { RuntimeControllerMap } from "shared/Domain/Runtime/Types/RuntimeTypes";
 import { CreateControllerToken } from "shared/Domain/Runtime/Components/ControllerToken";
 
-import { HealthController } from "./HealthController";
+import { StrengthController } from "./StrengthController";
+import { WinsController } from "./WinsController";
 
-export const HealthControllerToken = CreateControllerToken<HealthController>("HealthController");
+export const StrengthControllerToken =
+    CreateControllerToken<StrengthController>(`StrengthController`);
+
+export const WinsControllerToken = CreateControllerToken<WinsController>(`WinsController`);
 
 export interface RuntimeStatsControllers extends RuntimeControllerMap {
-    HealthController: HealthController;
+    StrengthController: StrengthController;
+    WinsController: WinsController;
 }

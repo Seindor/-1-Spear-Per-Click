@@ -1,7 +1,7 @@
 import { ReplicatedAtomAggregate } from "shared/Domain/ReplicatedAtoms/Aggregates/ReplicatedAtomAggregate";
 import { RegisterReplicator } from "shared/Domain/ReplicatedAtoms/Decorators/RegisterReplicator";
 
-import { ISlotData, PlayerData } from "shared/Types/Database/PlayerData";
+import { PlayerData } from "shared/Types/Database/PlayerData";
 import { AtomPath, AtomPathValue } from "shared/Domain/ReplicatedAtoms_OLD/Types/AtomPathTypes";
 
 import { ServerRegistry } from "server/DI/Generated/ServerRegistry";
@@ -30,7 +30,6 @@ export class PlayerDataReplicator extends ReplicatedAtomAggregate<PlayerData> {
             `SyncReplicators`,
             () => {
                 this.UpdateData(actorId, data);
-                this.UpdateSlots(actorId, data);
             },
             undefined,
             `PlayerDataReplicator`,
@@ -50,22 +49,5 @@ export class PlayerDataReplicator extends ReplicatedAtomAggregate<PlayerData> {
 
     public UpdateData(acotrId: string, data: PlayerData) {
         this.Set(`${acotrId}` as never, data as never);
-    }
-
-    public UpdateSlot(playerId: string, slot: string) {
-        return {
-            Set: <TPath extends AtomPath<ISlotData>>(
-                path: TPath,
-                value: AtomPathValue<ISlotData, TPath>,
-            ) => {
-                this.Set(`${playerId}/${slot}/${path}` as never, value as never);
-            },
-        };
-    }
-
-    public UpdateSlots(playerId: string, data: PlayerData) {
-        for (const [index, slot] of ipairs(data.slots)) {
-            this.Set(`${playerId}/slots/${index}` as never, slot as never);
-        }
     }
 }

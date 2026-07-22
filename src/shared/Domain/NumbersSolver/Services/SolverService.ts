@@ -1,48 +1,42 @@
-import { SolverProperties } from "../Types/SolverTypes";
-import { SolverAggregate } from "../Aggregates/SolverAggregate";
+import { SolverPack } from "../Aggregates/SolverPack";
 
 export class SolverService {
-    public solvers = new Map<string, SolverAggregate>();
+    public packs = new Map<string, SolverPack>();
 
-    public CreateSolver(properties: SolverProperties, overwrite?: boolean): SolverAggregate {
-        if (this.solvers.has(properties.solverName ?? "Unknown Solver")) {
+    public NewPack(packName: string, overwrite?: boolean): SolverPack {
+        if (this.packs.has(packName)) {
             if (overwrite) {
-                this.RemoveSolver(properties.solverName ?? "Unknown Solver");
-
-                const solver = new SolverAggregate(properties);
-                this.solvers.set(solver.name, solver);
-
-                return solver;
+                this.RemovePack(packName);
+            } else {
+                return this.packs.get(packName)!;
             }
-
-            return this.solvers.get(properties.solverName ?? "Unknown Solver")!;
         }
 
-        const solver = new SolverAggregate(properties);
-        this.solvers.set(solver.name, solver);
+        const pack = new SolverPack(packName);
+        this.packs.set(packName, pack);
 
-        return solver;
+        return pack;
     }
 
-    public GetSolver(solverName: string): SolverAggregate | undefined {
-        if (this.solvers.has(solverName)) {
-            return this.solvers.get(solverName);
+    public GetPack(packName: string): SolverPack | undefined {
+        if (this.packs.has(packName)) {
+            return this.packs.get(packName);
         }
 
-        warn(`Cannot find ${solverName} in map to return.`);
+        warn(`Cannot find pack "${packName}" to return.`);
         return;
     }
 
-    public RemoveSolver(solverName: string) {
-        if (this.solvers.has(solverName)) {
-            const solver = this.solvers.get(solverName)!;
+    public RemovePack(packName: string) {
+        if (this.packs.has(packName)) {
+            const pack = this.packs.get(packName)!;
 
-            solver.Destroy();
-            this.solvers.delete(solverName);
+            pack.Destroy();
+            this.packs.delete(packName);
 
             return;
         }
 
-        warn(`Cannot find ${solverName} in map to remove.`);
+        warn(`Cannot find pack "${packName}" to remove.`);
     }
 }

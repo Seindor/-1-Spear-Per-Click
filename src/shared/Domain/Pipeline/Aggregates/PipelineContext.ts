@@ -36,10 +36,12 @@ export class PipelineContext<TContext extends PipelineContextData> {
 
     // ── runtime storage ──────────────────────────────────────────────────────
 
-    public Set<T>(key: string, value: T): this {
-        if (this._locked) error(`[PipelineContext] Locked — cannot Set("${key}")`);
+    public Set<T>(key: string, value: T) {
+        // if (this._locked) {
+        //     warn(`[PipelineContext] Locked — cannot Set("${key}")`);
+        // } else {
         this.values.set(key, value);
-        return this;
+        // }
     }
 
     public Get<T>(key: string): T | undefined {

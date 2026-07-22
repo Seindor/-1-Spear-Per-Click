@@ -23,27 +23,38 @@ const clientAtomAPI = sharedScope.resolve(SharedRegistry.Singletons.API.ClientAt
 export class LoadReplicatorsStep extends PipelineStep<ClientPlayerContext> {
     public readonly Id = `LoadReplicatorsStep`;
 
-    public controllers!: {
-        replicators: Replicators;
-        statusEffectsReplicationController: StatusEffectsReplicationController;
-    };
+    public controllers = new Map<string, object>();
 
     public Execute(ctx: PipelineContext<ClientPlayerContext>): void {
         const id = this.Id;
         let player = ctx.Data.player;
 
-        clientAtomAPI.WaitForChannel(`RuntimeStats`);
-        clientAtomAPI.WaitForChannel(`RuntimeEquipment`);
         clientAtomAPI.WaitForChannel(`PlayerData`);
         clientAtomAPI.WaitForChannel(`StatusEffects`);
+        clientAtomAPI.WaitForChannel(`RuntimeStats`);
+        clientAtomAPI.WaitForChannel(`RuntimeEquipment`);
+        clientAtomAPI.WaitForChannel(`RuntimeGamePlay`);
+
+        for (const module of script.GetChildren() as ModuleScript[]) {
+            const required = require(module) as Record<string, defined>;
+
+            const [requiredName, requiredClass] = next(required)!;
+
+            const Controller = requiredClass as {
+                new (ctx: PipelineContext<ClientPlayerContext>): { id: string } & object;
+            };
+
+            let importedController = new Controller(ctx);
+
+            if (importedController.id === `Replicators`) {
+                ctx.Set(`${this.Id}/Replicators`, importedController);
+            }
+
+            this.controllers.set(importedController.id, importedController);
+        }
+
         ClientSignals.RequestHydrate.fire();
 
-        this.controllers = {
-            replicators: new Replicators(ctx),
-            statusEffectsReplicationController: new StatusEffectsReplicationController(ctx),
-        };
-
-        ctx.Set(`${this.Id}/Replicators`, this.controllers.replicators);
         ctx.Set(`${this.Id}/Controllers`, this.controllers);
 
         ctx.MarkCompleted(this.Id);

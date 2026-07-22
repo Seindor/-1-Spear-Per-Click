@@ -10,16 +10,7 @@ const abilityAPI = sharedScope.resolve(SharedRegistry.Singletons.API.AbilityAPI)
 export function CreateAbilitiesPack(ownerId: string): AbilityPackDefinition {
     let abilities = {
         name: `Default`,
-        abilities: {
-            Run: {
-                key: `Run`,
-                priority: 1,
-                abilityName: `Run`,
-                mode: `Hold`,
-                activation: `ClientThenServer`,
-                ability: Create_Default_Run_Ability(ownerId),
-            },
-        },
+        abilities: {},
     } as AbilityPackDefinition;
 
     return abilities;

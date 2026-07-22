@@ -1,4 +1,4 @@
-import { RunService } from "@rbxts/services";
+import { Workspace, RunService } from "@rbxts/services";
 import {
     AbilityEvent,
     IAbility,
@@ -57,13 +57,18 @@ export class AbilityAggregate implements IAbility {
         if (this.config.manualEnd) return;
         if (this.config.duration === math.huge) return;
 
+        if (this.config.duration === 0 && this.config.minDuration === 0) {
+            this.Execute("End", check);
+            return;
+        }
+
         const connection = RunService.Heartbeat.Connect(() => {
             if (!this.HasState("Active")) {
                 this._janitor.Remove("validateDuration");
                 return;
             }
 
-            const now = os.time();
+            const now = Workspace.GetServerTimeNow();
             const elapsed = now - this.config.lastUsed;
 
             if (elapsed >= this.config.duration) {
@@ -101,6 +106,7 @@ export class AbilityAggregate implements IAbility {
         if (this.HasState("Locked")) return false;
         if (this.HasState("Active")) return false;
         if (this.HasState("Cooldown")) return false;
+        if (this.OnCooldown()) return false;
         return true;
     }
 
@@ -119,6 +125,7 @@ export class AbilityAggregate implements IAbility {
     public RemoveState(state: IAbilityStates) {
         if (TableHelper.IsTableEmpty(this)) return;
         if (!this || !this.config || !this.config.states) return;
+
         ArrayHelper.removeString(this.config.states, state, true);
     }
 
@@ -166,6 +173,7 @@ export class AbilityAggregate implements IAbility {
         if (callBackName === "Start") {
             if (!this.canStart(check)) {
                 this.Emit("Rejected");
+                this.RemoveState("Active");
                 this._janitor.Add(
                     task.spawn(() => this.behaviours.onReject?.(...args)),
                     true,
@@ -175,6 +183,7 @@ export class AbilityAggregate implements IAbility {
 
             if (check && this.behaviours.onStartCheck(...args) !== true) {
                 this.Emit("Rejected");
+                this.RemoveState("Active");
                 this._janitor.Add(
                     task.spawn(() => this.behaviours.onReject?.(...args)),
                     true,
@@ -184,7 +193,7 @@ export class AbilityAggregate implements IAbility {
 
             this.RemoveState("Idle");
 
-            this.config.lastUsed = os.time();
+            this.config.lastUsed = Workspace.GetServerTimeNow();
 
             this.AddState("Active");
             this.ending = false;
@@ -201,7 +210,7 @@ export class AbilityAggregate implements IAbility {
         }
 
         if (!this.canEnd(check)) return;
-        if (check && this.behaviours.onEndCheck(...args) !== true) return;
+        if (check === true && this.behaviours.onEndCheck(...args) !== true) return;
 
         this.ending = true;
 
@@ -251,7 +260,8 @@ export class AbilityAggregate implements IAbility {
 
     public OnCooldown(): boolean {
         if (TableHelper.IsTableEmpty(this)) return true;
-        const now = os.time();
+        const now = Workspace.GetServerTimeNow();
+        if (this.config.cooldown === 0) return false;
         return now - this.config.lastUsed <= this.config.cooldown;
     }
 

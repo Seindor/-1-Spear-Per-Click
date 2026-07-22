@@ -30,7 +30,7 @@ export class AtomPathAccessorComponent {
             current[key] = typeIs(child, "table") ? this.clone.Shallow(child) : {};
             current = current[key] as UnknownTable;
         }
-        current[keys[keys.size() - 1]] = value;
+        current[keys[keys.size() - 1]] = this.clone.Deep(value); // ← было просто `value`
         return root as TState;
     }
 

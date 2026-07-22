@@ -14,7 +14,7 @@ const replicatedStatusEffectsAPI = sharedScope.resolve(
 const clientAtomAPI = sharedScope.resolve(SharedRegistry.Singletons.API.ClientAtomAPI);
 
 export class StatusEffectsReplicationController {
-    public Id = `StatusEffectsReplicationController`;
+    public id = `StatusEffectsReplicationController`;
 
     constructor(ctx: PipelineContext<ClientPlayerContext>) {
         this.Init(ctx);
@@ -31,6 +31,6 @@ export class StatusEffectsReplicationController {
             },
         );
 
-        ctx.MarkLoaded(this.Id);
+        ctx.MarkLoaded(this.id);
     }
 }

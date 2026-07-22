@@ -2,7 +2,7 @@ import type { ContextAPI } from "shared/Domain/InputContext/API/ContextAPI";
 import { KeybindMapper } from "./KeybindMapper";
 
 import type EventBusAggregate from "shared/Domain/EventBus/Aggregates/EventBusAggregate";
-import type { IKeybinds, IRuntimeBind } from "shared/Types/Database/Keybinds";
+import type { IKeybinds, IRuntimeBind } from "shared/Types/Gameplay/Keybinds/Keybinds";
 
 export class InputsHandler {
     constructor(

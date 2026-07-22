@@ -4,6 +4,7 @@ import { Janitor } from "@rbxts/janitor";
 import { HitboxAggregate } from "../Aggregates/HitboxAggregate";
 import { HitboxConfig } from "../Types/HitboxTypes";
 import { HitboxVisualizer } from "../Components/HitboxVisualizer";
+import { OBB, OBBOverlap } from "../Components/OBBintersection";
 
 type Snapshot = {
     time: number; // Workspace.GetServerTimeNow()
@@ -11,20 +12,35 @@ type Snapshot = {
     velocity: Vector3;
 };
 
+type TrackedPartInfo = {
+    // Насколько секунд назад можно откатить позицию ЭТОГО конкретного парта.
+    // Задаётся индивидуально в TrackPart — например для боссов можно
+    // хранить дольше, чем для рядовых мобов.
+    saveTime: number;
+};
+
 export class HitboxService {
     private hitboxes = new Map<string, HitboxAggregate>();
-    private history = new Map<Model, Snapshot[]>();
-    private trackedModels = new Set<Model>();
+
+    // Трекнутые парты: часть -> её персональная настройка (saveTime).
+    private trackedParts = new Map<BasePart, TrackedPartInfo>();
+    private history = new Map<BasePart, Snapshot[]>();
 
     private lastCFrame = new Map<string, CFrame>();
-    private activeHits = new Map<string, Set<Instance>>();
+    private activeHits = new Map<string, Set<BasePart>>();
 
     private janitor = new Janitor<any>();
 
-    // максимальное время хранения истории в секундах
-    private readonly HISTORY_DURATION = 1.0;
+    // Троттлинг записи снапшотов — не на КАЖДЫЙ физический кадр (это дорого
+    // при большом числе трекнутых партов), а раз в snapshotInterval секунд.
+    // 0.05 (20 Гц) — хороший баланс точности/нагрузки по умолчанию.
+    // Если партов много и профайлер показывает нагрузку — подними до 0.1 (10 Гц).
+    private readonly snapshotInterval: number;
+    private lastSnapshotAt = 0;
 
-    constructor() {
+    constructor(snapshotInterval = 0.05) {
+        this.snapshotInterval = snapshotInterval;
+
         this.janitor.Add(
             RunService.PostSimulation.Connect((dt) => {
                 this.record();
@@ -33,18 +49,23 @@ export class HitboxService {
         );
     }
 
-    public TrackModel(model: Model) {
-        if (this.trackedModels.has(model)) return;
-        this.trackedModels.add(model);
+    /**
+     * Начинает отслеживать позицию part для использования в предикшене.
+     * saveTime — на сколько секунд назад можно откатить его позицию при
+     * проверке хитбокса (по умолчанию 2 секунды). Повторный вызов на уже
+     * трекнутом part обновляет saveTime, история не сбрасывается.
+     */
+    public TrackPart(part: BasePart, saveTime = 2): void {
+        this.trackedParts.set(part, { saveTime });
     }
 
-    public UntrackModel(model: Model) {
-        this.trackedModels.delete(model);
-        this.history.delete(model);
+    public UntrackPart(part: BasePart): void {
+        this.trackedParts.delete(part);
+        this.history.delete(part);
     }
 
-    public IsTracked(model: Model): boolean {
-        return this.trackedModels.has(model);
+    public IsTracked(part: BasePart): boolean {
+        return this.trackedParts.has(part);
     }
 
     // rewindTime — латентность клиента: serverNow - clientTimestamp
@@ -60,6 +81,9 @@ export class HitboxService {
                 ...config,
                 prediction: {
                     ...config.prediction,
+                    // Санитарный потолок на случай сломанного/читерского клиента —
+                    // независимо от него, ниже дополнительно клэмпится под
+                    // saveTime конкретного трекнутого парта.
                     rewindTime: math.clamp(rewindTime, 0, 0.4),
                 },
             };
@@ -92,30 +116,31 @@ export class HitboxService {
         this.activeHits.delete(id);
     }
 
-    // запись истории — используем GetServerTimeNow чтобы время совпадало с клиентом
+    // Запись истории — троттлится snapshotInterval, читает CFrame напрямую
+    // с трекнутого BasePart (больше не ищет HumanoidRootPart внутри Model).
     private record() {
         const now = Workspace.GetServerTimeNow();
 
-        for (const model of this.trackedModels) {
-            if (!model.Parent) continue;
+        if (now - this.lastSnapshotAt < this.snapshotInterval) return;
+        this.lastSnapshotAt = now;
 
-            const root = model.FindFirstChild("HumanoidRootPart") as BasePart | undefined;
-            if (!root) continue;
+        for (const [part, info] of this.trackedParts) {
+            if (!part.Parent) continue;
 
-            let list = this.history.get(model);
+            let list = this.history.get(part);
             if (!list) {
                 list = [];
-                this.history.set(model, list);
+                this.history.set(part, list);
             }
 
             list.push({
                 time: now,
-                cframe: root.CFrame,
-                velocity: root.AssemblyLinearVelocity,
+                cframe: part.CFrame,
+                velocity: part.AssemblyLinearVelocity,
             });
 
-            // чистим старые снапшоты
-            while (list.size() > 0 && now - list[0].time > this.HISTORY_DURATION) {
+            // чистим снапшоты старше saveTime ИМЕННО этого парта
+            while (list.size() > 0 && now - list[0].time > info.saveTime) {
                 list.remove(0);
             }
         }
@@ -140,12 +165,11 @@ export class HitboxService {
         return base.mul(hb.config.offset ?? new CFrame());
     }
 
-    // возвращает интерполированный CFrame модели в момент времени targetTime
-    private getHistoricalCFrame(model: Model, targetTime: number): CFrame | undefined {
-        const snapshots = this.history.get(model);
+    // Возвращает интерполированный CFrame парта в момент времени targetTime.
+    private getHistoricalCFrame(part: BasePart, targetTime: number): CFrame | undefined {
+        const snapshots = this.history.get(part);
         if (!snapshots || snapshots.size() < 2) return undefined;
 
-        // ищем два снапшота между которыми находится targetTime
         for (let i = snapshots.size() - 2; i >= 0; i--) {
             const older = snapshots[i];
             const newer = snapshots[i + 1];
@@ -159,13 +183,34 @@ export class HitboxService {
             }
         }
 
-        // targetTime старше всех снапшотов — берём самый старый
         if (targetTime < snapshots[0].time) {
             return snapshots[0].cframe;
         }
 
-        // targetTime новее всех — берём последний
         return snapshots[snapshots.size() - 1].cframe;
+    }
+
+    // Проверка фильтра (Exclude/Include + FilterDescendantsInstances) для
+    // партов из this.trackedParts — они НЕ проходят через
+    // Workspace:GetPartBoundsInBox, поэтому фильтр нужно применять вручную.
+    private passesInstanceFilter(part: BasePart, cfg: HitboxConfig): boolean {
+        const filterList = cfg.filter;
+        const isExclude =
+            (cfg.filterType ?? Enum.RaycastFilterType.Exclude) === Enum.RaycastFilterType.Exclude;
+
+        if (!filterList || filterList.size() === 0) {
+            return isExclude; // Exclude+пусто -> всё проходит; Include+пусто -> ничего
+        }
+
+        let matchesFilter = false;
+        for (const inst of filterList) {
+            if (part === inst || part.IsDescendantOf(inst)) {
+                matchesFilter = true;
+                break;
+            }
+        }
+
+        return isExclude ? !matchesFilter : matchesFilter;
     }
 
     private process(id: string, hb: HitboxAggregate) {
@@ -203,60 +248,73 @@ export class HitboxService {
         params.FilterType = cfg.filterType ?? Enum.RaycastFilterType.Exclude;
         params.FilterDescendantsInstances = cfg.filter ?? [];
 
-        const parts = Workspace.GetPartBoundsInBox(sweepCF, cfg.size, params);
-
-        const currentFrameHits = new Set<Instance>();
+        const currentFrameHits = new Set<BasePart>();
         const hitSet = this.activeHits.get(id)!;
 
-        for (const part of parts) {
-            const target = part.FindFirstAncestorWhichIsA("Model") ?? part;
+        const registerHit = (part: BasePart) => {
+            if (currentFrameHits.has(part)) return;
+            if (cfg.hitCheck && !cfg.hitCheck(part)) return;
 
-            if (cfg.hitCheck && !cfg.hitCheck(target)) continue;
-            if (currentFrameHits.has(target)) continue;
+            currentFrameHits.add(part);
 
-            // rewind — откатываем цель назад и проверяем дистанцию
-            if (prediction?.enabled && prediction.rewindTime !== undefined && target.IsA("Model")) {
-                const targetTime = now - prediction.rewindTime;
-                const historicalCF = this.getHistoricalCFrame(target, targetTime);
+            if (!hb.CanHit(part)) return;
 
-                if (historicalCF) {
-                    let effectiveSize = cfg.size;
+            task.spawn(() => cfg.onHit?.(part));
+            hitSet.add(part);
+        };
 
-                    // movementForgiveness — расширяем хитбокс если цель двигалась
-                    if (
-                        prediction.movementForgiveness !== undefined &&
-                        prediction.movementForgiveness > 1
-                    ) {
-                        const snapshots = this.history.get(target);
-                        if (snapshots && snapshots.size() >= 2) {
-                            const latest = snapshots[snapshots.size() - 1];
-                            const speed = latest.velocity.Magnitude;
-                            // чем быстрее цель, тем больше хитбокс, но не более чем forgiveness * size
-                            const scale = math.clamp(
-                                1 + speed * 0.05,
-                                1,
-                                prediction.movementForgiveness,
-                            );
-                            effectiveSize = cfg.size.mul(scale);
-                        }
-                    }
-
-                    const distance = historicalCF.Position.sub(sweepCF.Position).Magnitude;
-                    const tolerance = effectiveSize.Magnitude * 0.5;
-
-                    if (distance > tolerance) continue;
-                }
-            }
-
-            currentFrameHits.add(target);
-
-            if (!hb.CanHit(target)) continue;
-
-            task.spawn(() => cfg.onHit?.(target));
-            hitSet.add(target);
+        // ── 1) ЖИВАЯ проверка: что реально пересекается прямо сейчас ──────
+        const liveParts = Workspace.GetPartBoundsInBox(sweepCF, cfg.size, params);
+        for (const part of liveParts) {
+            registerHit(part);
         }
 
-        // onHitEnd для целей которые вышли из хитбокса
+        // ── 2) ПРЕДИКШЕН: те же трекнутые парты, но по ЗАПИСАННОЙ позиции ──
+        // Выполняется ОДНОВРЕМЕННО с живой проверкой (не вместо неё).
+        // Если часть уже засчитана живой проверкой — пропускаем, чтобы не
+        // делать лишнюю геометрию.
+        if (prediction?.enabled && prediction.rewindTime !== undefined) {
+            const hitboxOBB: OBB = { cframe: sweepCF, halfSize: cfg.size.mul(0.5) };
+
+            for (const [part, info] of this.trackedParts) {
+                if (!part.Parent) continue;
+                if (currentFrameHits.has(part)) continue;
+                if (!this.passesInstanceFilter(part, cfg)) continue;
+
+                // Клэмп под ИСТОРИЮ конкретного парта — нельзя отмотать дальше,
+                // чем для него реально сохранено.
+                const clampedRewind = math.min(prediction.rewindTime, info.saveTime);
+                const historicalCF = this.getHistoricalCFrame(part, now - clampedRewind);
+                if (!historicalCF) continue;
+
+                let halfSize = part.Size.mul(0.5);
+
+                // movementForgiveness — расширяем хитбокс цели, если она быстро двигалась
+                // (сглаживает погрешность интерполяции между снапшотами).
+                if (
+                    prediction.movementForgiveness !== undefined &&
+                    prediction.movementForgiveness > 1
+                ) {
+                    const snapshots = this.history.get(part);
+                    if (snapshots && snapshots.size() >= 2) {
+                        const speed = snapshots[snapshots.size() - 1].velocity.Magnitude;
+                        const scale = math.clamp(
+                            1 + speed * 0.05,
+                            1,
+                            prediction.movementForgiveness,
+                        );
+                        halfSize = halfSize.mul(scale);
+                    }
+                }
+
+                const targetOBB: OBB = { cframe: historicalCF, halfSize };
+                if (!OBBOverlap(hitboxOBB, targetOBB)) continue;
+
+                registerHit(part);
+            }
+        }
+
+        // onHitEnd для целей, которые вышли из хитбокса (ни живой, ни исторической проверкой)
         for (const old of hitSet) {
             if (!currentFrameHits.has(old)) {
                 task.spawn(() => cfg.onHitEnd?.(old));

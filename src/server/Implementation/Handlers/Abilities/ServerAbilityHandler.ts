@@ -46,7 +46,7 @@ export class ServerAbilityHandler {
         }
 
         if (method === "Start" || method === "End") {
-            abilityAPI.Execute(entry.ability, method, false);
+            abilityAPI.Execute(entry.ability, method, true);
             return;
         }
 

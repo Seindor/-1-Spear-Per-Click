@@ -1,10 +1,13 @@
 import { ReplicatedAtomAggregate } from "shared/Domain/ReplicatedAtoms/Aggregates/ReplicatedAtomAggregate";
 import { RegisterReplicator } from "shared/Domain/ReplicatedAtoms/Decorators/RegisterReplicator";
 
+import { AtomPath, AtomPathValue } from "shared/Domain/ReplicatedAtoms_OLD/Types/AtomPathTypes";
+
+import { RuntimeEquipmentState } from "shared/Types/Replicators/Runtime/RuntimeEquipmentState";
+
 import { ServerRegistry } from "server/DI/Generated/ServerRegistry";
 import { CompositionRootServer } from "server/DI/CompositionRootServer";
 import { RuntimeStatsState } from "shared/Types/Replicators/Runtime/RuntimeStatsState";
-import { AtomPath, AtomPathValue } from "shared/Domain/ReplicatedAtoms_OLD/Types/AtomPathTypes";
 
 const serverScope = CompositionRootServer.createScope();
 
@@ -12,18 +15,14 @@ const serverAtomAPI = serverScope.resolve(ServerRegistry.Singletons.API.ServerAt
 
 @RegisterReplicator()
 export class RuntimeStatsReplicator extends ReplicatedAtomAggregate<
-    Record<string, RuntimeStatsState>
+    Record<string, RuntimeStatsReplicator>
 > {
     constructor() {
         super("RuntimeStats", {});
     }
 
-    public InitActor(actorId: string) {
-        this.UpdateActor(actorId, {
-            health: { value: 100, maxValue: 100 },
-            posture: { value: 100, maxValue: 100 },
-            hunger: { value: 100, maxValue: 100 },
-        });
+    public InitActor(actorId: string, data: RuntimeStatsState) {
+        this.UpdateActor(actorId, data);
     }
 
     public UpdateDataWithPath(playerId: string) {

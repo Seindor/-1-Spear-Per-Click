@@ -2,7 +2,7 @@ import type { PipelineContext } from "shared/Domain/Pipeline/Aggregates/Pipeline
 import { PlayerPipelineToken, type PlayerContext } from "../PlayerPipeline";
 import { type SessionContext } from "shared/Types/Runtime/SessionRuntime";
 
-import { DataHandler } from "server/Implementation/Handlers/DataHandler";
+import { DataHandler } from "server/Implementation/Handlers/Game/Data/DataHandler";
 import type { RuntimeAPI } from "shared/Domain/Runtime/API/RuntimeAPI";
 import type { ServerReplicatedAtomAPI } from "shared/Domain/ReplicatedAtoms/API/ServerReplicatedAtomAPI";
 
@@ -17,6 +17,7 @@ import { ServerRegistry } from "server/DI/Generated/ServerRegistry";
 import { IsPlaceBlacklisted, PlaceBlacklist } from "shared/Types/Game/ServerInfo";
 import { RuntimeStatsControllers } from "server/Implementation/Handlers/Runtimes/SessionRuntime/Controllers/RuntimeStats";
 import { RuntimeEquipmentControllers } from "server/Implementation/Handlers/Runtimes/SessionRuntime/Controllers/RuntimeEquipment";
+import { RuntimeGamePlayControllers } from "server/Implementation/Handlers/Runtimes/SessionRuntime/Controllers/RuntimeGameplay";
 
 const sharedScope = CompositionRootShared.createScope();
 const serverScope = CompositionRootServer.createScope();
@@ -32,7 +33,6 @@ const serverReplicatedAtomAPI = serverScope.resolve(
 @Pipeline({ Pipeline: PlayerPipelineToken })
 export class LoadDataStep extends PipelineStep<PlayerContext> {
     public readonly Id = `LoadDataStep`;
-    public blacklist = [`Main Menu`] as PlaceBlacklist;
 
     public Execute(ctx: PipelineContext<PlayerContext>): void {
         const { id, player } = ctx.Data;
@@ -42,13 +42,6 @@ export class LoadDataStep extends PipelineStep<PlayerContext> {
 
         let data = handler.GetData();
 
-        if (!IsPlaceBlacklisted(this.blacklist)) {
-            if (data.currentSlot === `none`) {
-                player.Kick(`Select slot!`);
-                error(`[${this.Id}] Failed for ${id}`);
-            }
-        }
-
         const runtimeStats = runtimeAPI.Create<RuntimeStatsControllers>({ id }, `Stats`);
         runtimeStats.SetMeta(`DataHandler`, handler);
 
@@ -57,6 +50,9 @@ export class LoadDataStep extends PipelineStep<PlayerContext> {
             `Equipment`,
         );
         runtimeEquipment.SetMeta(`DataHandler`, handler);
+
+        const runtimeGamePlay = runtimeAPI.Create<RuntimeGamePlayControllers>({ id }, `GamePlay`);
+        runtimeGamePlay.SetMeta(`DataHandler`, handler);
 
         ctx.Set(`DataHandler`, handler);
 

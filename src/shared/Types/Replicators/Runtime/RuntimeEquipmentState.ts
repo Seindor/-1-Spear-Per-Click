@@ -1,8 +1,6 @@
 export type RuntimeEquipmentState = {
-    flags: {
-        fightingStyle: string;
-        weapon: string;
-        currentStage: string;
-    };
-    equipment: {};
+    [`weapon`]: number;
+    [`pets`]: string[];
+    [`title`]: number;
+    [`aura`]: number;
 };

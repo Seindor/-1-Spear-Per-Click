@@ -6,7 +6,7 @@ export class HitboxAggregate {
 
     public position = new CFrame();
 
-    public hitCache = new Map<Instance, number>();
+    public hitCache = new Map<BasePart, number>();
 
     constructor(
         public readonly id: string,
@@ -39,20 +39,20 @@ export class HitboxAggregate {
         }
     }
 
-    public ClearTarget(target: Instance) {
+    public ClearTarget(target: BasePart) {
         if (!this.hitCache.has(target)) return;
         this.hitCache.delete(target);
     }
 
-    public CanHit(inst: Instance) {
+    public CanHit(target: BasePart) {
         const now = os.clock();
-        const last = this.hitCache.get(inst);
+        const last = this.hitCache.get(target);
 
         if (last !== undefined && now - last < this.config.hitCooldown) {
             return false;
         }
 
-        this.hitCache.set(inst, now);
+        this.hitCache.set(target, now);
         return true;
     }
 }

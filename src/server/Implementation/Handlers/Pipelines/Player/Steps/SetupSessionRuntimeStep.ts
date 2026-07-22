@@ -15,13 +15,18 @@ import { SharedRegistry } from "shared/DI/Generated/SharedRegistry";
 import { ServerRegistry } from "server/DI/Generated/ServerRegistry";
 import { IsPlaceBlacklisted, PlaceBlacklist } from "shared/Types/Game/ServerInfo";
 import {
-    HealthControllerToken,
     RuntimeStatsControllers,
+    StrengthControllerToken,
+    WinsControllerToken,
 } from "server/Implementation/Handlers/Runtimes/SessionRuntime/Controllers/RuntimeStats";
 import {
     RuntimeEquipmentControllers,
     WeaponControllerToken,
 } from "server/Implementation/Handlers/Runtimes/SessionRuntime/Controllers/RuntimeEquipment";
+import {
+    RuntimeGamePlayControllers,
+    WorldsControllerToken,
+} from "server/Implementation/Handlers/Runtimes/SessionRuntime/Controllers/RuntimeGameplay";
 
 const sharedScope = CompositionRootShared.createScope();
 const serverScope = CompositionRootServer.createScope();
@@ -46,12 +51,15 @@ export class SetupSessionRuntime extends PipelineStep<PlayerContext> {
         if (IsPlaceBlacklisted(this.blacklist)) return;
 
         const runtimeStats = runtimeAPI.Get<RuntimeStatsControllers>(id, `Stats`)!;
-
         const runtimeEquipment = runtimeAPI.Get<RuntimeEquipmentControllers>(id, `Equipment`)!;
+        const runtimeGamePlay = runtimeAPI.Get<RuntimeGamePlayControllers>(id, `GamePlay`)!;
 
-        runtimeStats.Get(HealthControllerToken);
+        runtimeStats.Get(StrengthControllerToken);
+        runtimeStats.Get(WinsControllerToken);
 
         runtimeEquipment.Get(WeaponControllerToken);
+
+        runtimeGamePlay.Get(WorldsControllerToken);
 
         ctx.MarkCompleted(this.Id);
     }

@@ -1,19 +1,23 @@
-import { SolverAggregate } from "../Aggregates/SolverAggregate";
+import { SolverPack } from "../Aggregates/SolverPack";
 import { SolverService } from "../Services/SolverService";
-import { SolverProperties } from "../Types/SolverTypes";
 
 export class SolverAPI {
     public service = new SolverService();
 
-    public CreateSolver(properties: SolverProperties, overwrite?: boolean): SolverAggregate {
-        return this.service.CreateSolver(properties, overwrite);
+    /**
+     * Создаёт (или возвращает существующий) пак солверов по имени.
+     * Обычно packName — это что-то уникальное на игрока/сущность,
+     * например `Player_${userId}` или сам `Player.Name`.
+     */
+    public NewPack(packName: string, overwrite?: boolean): SolverPack {
+        return this.service.NewPack(packName, overwrite);
     }
 
-    public GetSolver(solverName: string): SolverAggregate | undefined {
-        return this.service.GetSolver(solverName);
+    public GetPack(packName: string): SolverPack | undefined {
+        return this.service.GetPack(packName);
     }
 
-    public RemoveSolver(solverName: string) {
-        this.service.RemoveSolver(solverName);
+    public RemovePack(packName: string) {
+        this.service.RemovePack(packName);
     }
 }

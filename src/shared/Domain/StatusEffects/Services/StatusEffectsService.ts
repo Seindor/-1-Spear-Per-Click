@@ -1,4 +1,4 @@
-import { RunService } from "@rbxts/services";
+import { Workspace, RunService } from "@rbxts/services";
 import { StatusAggregate } from "../Aggregates/StatusAggregate";
 import { BlacklistedStatus, StackInstance, StatusAggregateOptions } from "../Types/StatusTypes";
 import { IStatusId as StatusId } from "../Types/StatusTypes";
@@ -74,7 +74,7 @@ export class StatusEffectsService {
     }
 
     private ValidateDurations() {
-        const now = os.time();
+        const now = Workspace.GetServerTimeNow();
 
         for (const [actorId, statuses] of this.statusEffectsMap) {
             for (let i = statuses.size() - 1; i >= 0; i--) {
@@ -227,10 +227,10 @@ export class StatusEffectsService {
             const existing = list[existinIndex];
             if (existing.priority < newStatus.priority) {
                 existing.duration = newStatus.duration ?? existing.duration;
-                existing.spawned = os.time();
+                existing.spawned = Workspace.GetServerTimeNow();
             } else if (existing.priority === newStatus.priority) {
                 existing.duration = newStatus.duration;
-                existing.spawned = os.time();
+                existing.spawned = Workspace.GetServerTimeNow();
             }
 
             existing.apply(actorId);
@@ -246,7 +246,7 @@ export class StatusEffectsService {
     private policyAdd(actorId: string, newStatus: StatusAggregate, stack?: StackInstance) {
         const list = this.statusEffectsMap.get(actorId)!;
         const existingIndex = list.findIndex((status) => status.id === newStatus.id);
-        const now = os.time();
+        const now = Workspace.GetServerTimeNow();
 
         if (existingIndex !== -1) {
             const existing = list[existingIndex];
@@ -347,7 +347,7 @@ export class StatusEffectsService {
             return existing;
         }
 
-        const now = os.time();
+        const now = Workspace.GetServerTimeNow();
 
         const oldRemaining =
             existing.duration !== undefined
